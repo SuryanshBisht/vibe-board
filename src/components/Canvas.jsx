@@ -14,8 +14,6 @@ const Canvas = ({ width, height }) => {
   const isDrawingRef = useRef(false);
   const historyRef = useRef([]);
   const historyStepRef = useRef(-1);
-  const [brush, setBrush] = useState(brushes[0]);
-  const [brushColor, setBrushColor] = useState('#000000');
   const [selectedShape, setSelectedShape] = useState(null);
   const startSelect = useRef(null);
   const endSelect = useRef(null);
@@ -72,18 +70,6 @@ const Canvas = ({ width, height }) => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  
-  useEffect(() => {
-    const context = canvasRef.current.getContext('2d');
-    context.lineWidth = brush.width;
-    // You can add more style changes here if needed
-  }, [brush, canvasRef]);
-
-  useEffect(()=>{
-    const context = canvasRef.current.getContext('2d');
-    context.strokeStyle = brushColor; 
-  },[brushColor, canvasRef]);
 
   // Save current canvas state to history
   const saveHistory = () => {
@@ -198,7 +184,9 @@ const Canvas = ({ width, height }) => {
   const handleMouseOut = () => {
     // if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
-    saveHistory();
+    if(!selectMode){
+      saveHistory();
+    }
   };
 
   useEffect(() => {
@@ -236,8 +224,8 @@ const Canvas = ({ width, height }) => {
         style={{ border: '1px solid #000', background: '#fff' , cursor: selectedShape ? 'crosshair' : 'default'}}
       ></canvas>
       
-      <ColorMenu brush={brush} setBrush={setBrush}/>
-      <BrushMenu brushColor={brushColor} setBrushColor={setBrushColor}/>
+      <ColorMenu canvasRef={canvasRef}/>
+      <BrushMenu canvasRef={canvasRef}/>
     </>
   );
 };

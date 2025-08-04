@@ -1,17 +1,8 @@
 import React, { useState, useEffect } from 'react';
-
-// Example brush styles with icons (using emoji for simplicity)
-const brushes = [
-  { name: 'Pencil', width: 2, icon: '✏️' },
-  { name: 'Marker', width: 8, icon: '🖊️' },
-  { name: 'Brush', width: 16, icon: '🖌️' },
-  { name: 'Crayon', width: 6, icon: '🖍️' },
-  { name: 'Highlighter', width: 12, icon: '🖋️' }
-];
+import {brushes} from '../data/data';
 
 const BrushMenu = ({ canvasRef }) => {
   const [brush, setBrush] = useState(brushes[0]);
-
   useEffect(() => {
     const context = canvasRef.current.getContext('2d');
     context.lineWidth = brush.width;

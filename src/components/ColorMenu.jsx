@@ -1,9 +1,8 @@
 import {React, useState, useEffect} from 'react';
-
-const colors = ['#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'];
+import {colors} from '../data/data';
 
 const ColorMenu = ({canvasRef}) => {
-    const [brushColor, setBrushColor] = useState('#000000');
+    const [brushColor, setBrushColor] = useState(colors[0]);
     
     const changeBrushColor = () => {
         const context = canvasRef.current.getContext('2d');
