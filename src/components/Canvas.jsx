@@ -18,8 +18,10 @@ const Canvas = ({ width, height }) => {
   const startSelect = useRef(null);
   const endSelect = useRef(null);
   const [dashOffset, setDashOffset] = useState(0);
-  const [selectMode, setSelectMode] = useState(true);
+  const [selectMode, setSelectMode] = useState(false);
   const copyRef = useRef(null);
+  const mousePosRef=useRef(null);
+  const selectModeRef=useRef(false);
 
   useEffect(() => {
     const context = canvasRef.current.getContext('2d', { willReadFrequently: true });
@@ -46,23 +48,31 @@ const Canvas = ({ width, height }) => {
         print(selectMode);
         print(selectedShape)
       }
-      if(selectMode && ((e.ctrlKey || e.metaKey) && e.key === 'c')) {
+      if((e.ctrlKey || e.metaKey) && e.key === 'c') {
         // copy selected area
         e.preventDefault();
-        restoreLastState();
-        copyRef.current = contextRef.current.getImageData(startSelect.current[0], startSelect.current[1],
-        endSelect.current[0] - startSelect.current[0], endSelect.current[1] - startSelect.current[1]);
-        console.log('Copied area:', copyRef.current);
-        setSelectMode(false);
+        if(selectModeRef.current){
+          restoreLastState();
+          copyRef.current = contextRef.current.getImageData(startSelect.current[0], startSelect.current[1],
+          endSelect.current[0] - startSelect.current[0], endSelect.current[1] - startSelect.current[1]);
+          console.log('Copied area:', copyRef.current);
+          setSelectMode(false); 
+        }
+      } 
+      if(e.key==='a'){
+        console.log('a pressed');
+        console.log('selected shape is', selectedShape);
+        console.log('selectmode is', selectMode);
+        console.log('Copy reference:', copyRef.current);
       }
-      if((e.ctrlkey || e.metaKey) && e.key === 'v') {
+      if((e.ctrlKey || e.metaKey) && e.key === 'v') {
         // paste copied area
         e.preventDefault();
         console.log('Copy reference:', copyRef.current);
         // console.log('Pasting copied area at:', e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-        
+        setSelectMode(false);
         if(copyRef.current) {
-          // contextRef.current.putImageData(copyRef.current, e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+          contextRef.current.putImageData(copyRef.current, mousePosRef.current[0], mousePosRef.current[1]);
           saveHistory();
         }
       }
@@ -130,7 +140,7 @@ const Canvas = ({ width, height }) => {
       restoreLastState();
     }
     isDrawingRef.current = true;
-    if(selectedShape){
+    if(selectedShape!==null){
       startSelect.current=[e.nativeEvent.offsetX, e.nativeEvent.offsetY];
       return;
     }
@@ -140,8 +150,9 @@ const Canvas = ({ width, height }) => {
   };
 
   const handleMouseMove = (e) => {
+    mousePosRef.current=[e.nativeEvent.offsetX, e.nativeEvent.offsetY];
     if (!isDrawingRef.current) return;
-    if(selectedShape){
+    if(selectedShape!==null){
       endSelect.current=[e.nativeEvent.offsetX, e.nativeEvent.offsetY];
       // Restore the canvas to the last saved state before drawing the shape
       const ctx = contextRef.current;
@@ -209,6 +220,10 @@ const Canvas = ({ width, height }) => {
     }
   }, [selectedShape]);
 
+  useEffect(()=>{
+    selectModeRef.current=selectMode;
+  },[selectMode])
+  
   return (
     <>
       <ShapeMenu selectedShape={selectedShape} onSelectShape={setSelectedShape} />
