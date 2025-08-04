@@ -4,9 +4,9 @@ import ColorMenu from './ColorMenu';
 import BrushMenu from './BrushMenu';
 import ShapeMenu from './ShapeMenu';
 import {draw_shape} from '../utilities/draw_function';
-import {brushes} from '../data/data';
 
 const MAX_HISTORY = 10;
+const MENU_HIDE_DELAY = 500; // 0.5 seconds
 
 const Canvas = ({ width, height }) => {
   const canvasRef = useRef(null);
@@ -22,6 +22,35 @@ const Canvas = ({ width, height }) => {
   const copyRef = useRef(null);
   const mousePosRef=useRef(null);
   const selectModeRef=useRef(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const menuRef = useRef(null);
+  const hideTimeoutRef = useRef(null);
+
+  const copy= () => {
+    if(selectModeRef.current){
+      restoreLastState();
+      copyRef.current = contextRef.current.getImageData(startSelect.current[0], startSelect.current[1],
+      endSelect.current[0] - startSelect.current[0], endSelect.current[1] - startSelect.current[1]);
+      console.log('Copied area:', copyRef.current);
+      setSelectMode(false); 
+    }
+  }
+
+  const cut = () => {
+    if(selectModeRef.current){
+      copy(); 
+      contextRef.current.clearRect(startSelect.current[0], startSelect.current[1],
+      endSelect.current[0] - startSelect.current[0], endSelect.current[1] - startSelect.current[1]);
+    }
+  }
+  
+  const paste = () => {
+    setSelectMode(false);
+    if(copyRef.current) {
+      contextRef.current.putImageData(copyRef.current, mousePosRef.current[0], mousePosRef.current[1]);
+      saveHistory();
+    }
+  }
 
   useEffect(() => {
     const context = canvasRef.current.getContext('2d', { willReadFrequently: true });
@@ -44,45 +73,25 @@ const Canvas = ({ width, height }) => {
         setSelectMode(false);
         setSelectedShape(null);
         copyRef.current = null;
-        print('Selection cleared');
-        print(selectMode);
-        print(selectedShape)
+        console.log('Selection cleared');
+        console.log(selectMode);
+        console.log(selectedShape)
       }
       if((e.ctrlKey || e.metaKey) && e.key === 'c') {
         // copy selected area
         e.preventDefault();
-        if(selectModeRef.current){
-          restoreLastState();
-          copyRef.current = contextRef.current.getImageData(startSelect.current[0], startSelect.current[1],
-          endSelect.current[0] - startSelect.current[0], endSelect.current[1] - startSelect.current[1]);
-          console.log('Copied area:', copyRef.current);
-          setSelectMode(false); 
-        }
+        copy();
       } 
       if((e.ctrlKey || e.metaKey) && e.key === 'x') {
         e.preventDefault();
-        if(selectModeRef.current){
-          restoreLastState();
-          // copy selected area    
-          copyRef.current = contextRef.current.getImageData(startSelect.current[0], startSelect.current[1],
-          endSelect.current[0] - startSelect.current[0], endSelect.current[1] - startSelect.current[1]);
-          contextRef.current.clearRect(startSelect.current[0], startSelect.current[1],
-          endSelect.current[0] - startSelect.current[0], endSelect.current[1] - startSelect.current[1]);
-          saveHistory();
-          console.log('cut area:', copyRef.current);
-          setSelectMode(false); 
-        }
+        cut();
       } 
       if((e.ctrlKey || e.metaKey) && e.key === 'v') {
         // paste copied area
         e.preventDefault();
         console.log('Copy reference:', copyRef.current);
         // console.log('Pasting copied area at:', e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-        setSelectMode(false);
-        if(copyRef.current) {
-          contextRef.current.putImageData(copyRef.current, mousePosRef.current[0], mousePosRef.current[1]);
-          saveHistory();
-        }
+        paste();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -143,6 +152,7 @@ const Canvas = ({ width, height }) => {
   };
 
   const handleMouseDown = (e) => {
+    if(e.button === 2) return; // Right click should not start drawing
     if(selectMode) {
       setSelectMode(false);
       restoreLastState();
@@ -158,6 +168,7 @@ const Canvas = ({ width, height }) => {
   };
 
   const handleMouseMove = (e) => {
+    if(e.button === 2) return; // Right click should not start drawing
     mousePosRef.current=[e.nativeEvent.offsetX, e.nativeEvent.offsetY];
     if (!isDrawingRef.current) return;
     if(selectedShape!==null){
@@ -184,6 +195,7 @@ const Canvas = ({ width, height }) => {
   };
 
   const handleMouseUp = (e) => {
+    if(e.button === 2) return; // Right click should not start drawing
     endSelect.current = [e.nativeEvent.offsetX, e.nativeEvent.offsetY];
     isDrawingRef.current = false;
 
@@ -208,6 +220,15 @@ const Canvas = ({ width, height }) => {
     }
   };
 
+  const handleMenuVisible = (e) => {
+    e.preventDefault();
+    console.log('Right click detected');
+    setMenuVisible(true);
+    // Start auto-hide timer
+    clearTimeout(hideTimeoutRef.current);
+    hideTimeoutRef.current = setTimeout(() => setMenuVisible(false), 2000);
+  }
+
   useEffect(() => {
     let frame;
     if (selectedShape === 'Select') {
@@ -231,10 +252,47 @@ const Canvas = ({ width, height }) => {
   useEffect(()=>{
     selectModeRef.current=selectMode;
   },[selectMode])
+  
+  const menuItemStyle = {
+    padding: "8px 20px",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    userSelect: "none",
+    fontSize: "14px", 
+    color: "#333",
+    backgroundColor: "#fff",
+    display: "flex",
+    alignItems: "start",
+    justifyContent: "flex-start",
+    hover: {
+      backgroundColor: "#eee",
+    },
+  };
+
+  const handleMouseEnter = () => {
+    clearTimeout(hideTimeoutRef.current); // Cancel auto-hide when hovering
+  };
+
+  const handleMouseLeave = () => {
+    // Restart timer when user leaves menu
+    hideTimeoutRef.current = setTimeout(() => setMenuVisible(false), MENU_HIDE_DELAY);
+  };
+
+  // Click outside = hide menu
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuVisible(false);
+      }
+    };
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
 
   return (
     <>
       <ShapeMenu selectedShape={selectedShape} onSelectShape={setSelectedShape} />
+      <div style={{position: 'relative'}}>
       <canvas
         ref={canvasRef}
         id="whiteboard-canvas"
@@ -244,9 +302,38 @@ const Canvas = ({ width, height }) => {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseOut={handleMouseOut}
+        onContextMenu={handleMenuVisible}
         style={{ border: '1px solid #000', background: '#fff' , cursor: selectedShape ? 'crosshair' : 'default'}}
       ></canvas>
+      {/* <p style={{color: '#fff', position: 'absolute', top: 10, left: 10, zIndex: 1000}}>
+        {menuVisible?"Right click detected" : ""}
+      </p> */}
+      {menuVisible && (
+        <div
+          ref={menuRef}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          style={{
+            position: "absolute",
+            top: mousePosRef.current[1],
+            left: mousePosRef.current[0],
+            background: "white",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+            borderRadius: "4px",
+            padding: "5px 0",
+            display: "flex",
+            flexDirection: "column",
+            alignitems: "flex-start",
+            zIndex: 1000,
+          }}
+        >
+          <div style={menuItemStyle} onClick={()=>{copy(); setMenuVisible(false);}}>🔗Copy(Ctrl+C)</div>
+          <div style={menuItemStyle} onClick={()=>{cut(); setMenuVisible(false);}}>✂️Cut(Ctrl+X)</div>
+          <div style={menuItemStyle} onClick={()=>{paste(); setMenuVisible(false);}}>📋Paste(Ctrl+V)</div>
+        </div>
+      )}
       
+      </div>
       <ColorMenu canvasRef={canvasRef}/>
       <BrushMenu canvasRef={canvasRef}/>
     </>
