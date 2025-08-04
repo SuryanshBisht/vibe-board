@@ -59,12 +59,20 @@ const Canvas = ({ width, height }) => {
           setSelectMode(false); 
         }
       } 
-      if(e.key==='a'){
-        console.log('a pressed');
-        console.log('selected shape is', selectedShape);
-        console.log('selectmode is', selectMode);
-        console.log('Copy reference:', copyRef.current);
-      }
+      if((e.ctrlKey || e.metaKey) && e.key === 'x') {
+        e.preventDefault();
+        if(selectModeRef.current){
+          restoreLastState();
+          // copy selected area    
+          copyRef.current = contextRef.current.getImageData(startSelect.current[0], startSelect.current[1],
+          endSelect.current[0] - startSelect.current[0], endSelect.current[1] - startSelect.current[1]);
+          contextRef.current.clearRect(startSelect.current[0], startSelect.current[1],
+          endSelect.current[0] - startSelect.current[0], endSelect.current[1] - startSelect.current[1]);
+          saveHistory();
+          console.log('cut area:', copyRef.current);
+          setSelectMode(false); 
+        }
+      } 
       if((e.ctrlKey || e.metaKey) && e.key === 'v') {
         // paste copied area
         e.preventDefault();
@@ -223,7 +231,7 @@ const Canvas = ({ width, height }) => {
   useEffect(()=>{
     selectModeRef.current=selectMode;
   },[selectMode])
-  
+
   return (
     <>
       <ShapeMenu selectedShape={selectedShape} onSelectShape={setSelectedShape} />
