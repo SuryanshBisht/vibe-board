@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import ColorMenu from './ColorMenu';
 import BrushMenu from './BrushMenu';
 import ShapeMenu from './ShapeMenu';
-import {draw_shape} from '../utilities/draw_function';
+import {draw_shape, blur_background} from '../utilities/draw_function';
 
 const MAX_HISTORY = 10;
 
@@ -16,6 +16,7 @@ const Canvas = ({ width, height }) => {
   const [selectedShape, setSelectedShape] = useState(null);
   const startSelect = useRef(null);
   const endSelect = useRef(null);
+  const [dashOffset, setDashOffset] = useState(0);
 
   useEffect(() => {
     const context = canvasRef.current.getContext('2d', { willReadFrequently: true });
@@ -103,7 +104,14 @@ const Canvas = ({ width, height }) => {
         ctx.putImageData(historyRef.current[historyStepRef.current], 0, 0);
       }
       
-      draw_shape(contextRef.current, selectedShape, startSelect.current, endSelect.current);
+      if(selectedShape === 'Select') {
+        draw_shape(ctx,'Select',startSelect.current,endSelect.current,
+          dashOffset, // you should animate this with requestAnimationFrame for animation
+          true
+        );
+      }else{
+        draw_shape(ctx, selectedShape, startSelect.current, endSelect.current);
+      }
       return;
     }
     const ctx = contextRef.current;
@@ -112,10 +120,19 @@ const Canvas = ({ width, height }) => {
   };
 
   const handleMouseUp = (e) => {
-    // if (!isDrawingRef.current) return;
-    endSelect.current=[e.nativeEvent.offsetX, e.nativeEvent.offsetY];
-    console.log('Drawing in the range at:', startSelect.current, endSelect.current);
+    endSelect.current = [e.nativeEvent.offsetX, e.nativeEvent.offsetY];
     isDrawingRef.current = false;
+
+    if (selectedShape === 'Select') {
+      // Remove blur by restoring last saved state
+      const ctx = contextRef.current;
+      if (historyRef.current.length > 0) { 
+        ctx.putImageData(historyRef.current[historyStepRef.current], 0, 0);
+      }
+      draw_shape(ctx, 'Select', startSelect.current, endSelect.current, dashOffset, false, width, height);
+    }
+
+    setSelectedShape(null);
     saveHistory();
   };
 
@@ -124,6 +141,24 @@ const Canvas = ({ width, height }) => {
     isDrawingRef.current = false;
     saveHistory();
   };
+
+  useEffect(() => {
+    let frame;
+    if (selectedShape === 'Select') {
+      // Draw blur overlay and animated rectangle
+      const ctx = contextRef.current;
+      draw_shape(ctx,'Select',[0,0],[0,0],
+        dashOffset, // you should animate this with requestAnimationFrame for animation
+        true
+      );
+      const animate = () => {
+        setDashOffset((prev) => (prev + 2) % 100);
+        frame = requestAnimationFrame(animate);
+      };
+      animate();
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [selectedShape]);
 
   return (
     <>
@@ -137,7 +172,7 @@ const Canvas = ({ width, height }) => {
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseOut={handleMouseOut}
-        style={{ border: '1px solid #000', background: '#fff' }}
+        style={{ border: '1px solid #000', background: '#fff' , cursor: selectedShape ? 'crosshair' : 'default'}}
       ></canvas>
       <ColorMenu canvasRef={canvasRef} />
       <BrushMenu canvasRef={canvasRef} />
