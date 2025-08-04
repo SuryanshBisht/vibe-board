@@ -3,7 +3,8 @@ import PropTypes from 'prop-types';
 import ColorMenu from './ColorMenu';
 import BrushMenu from './BrushMenu';
 import ShapeMenu from './ShapeMenu';
-import {draw_shape, blur_background} from '../utilities/draw_function';
+import {draw_shape} from '../utilities/draw_function';
+import {brushes} from '../data/data';
 
 const MAX_HISTORY = 10;
 
@@ -13,10 +14,14 @@ const Canvas = ({ width, height }) => {
   const isDrawingRef = useRef(false);
   const historyRef = useRef([]);
   const historyStepRef = useRef(-1);
+  const [brush, setBrush] = useState(brushes[0]);
+  const [brushColor, setBrushColor] = useState('#000000');
   const [selectedShape, setSelectedShape] = useState(null);
   const startSelect = useRef(null);
   const endSelect = useRef(null);
   const [dashOffset, setDashOffset] = useState(0);
+  const [selectMode, setSelectMode] = useState(true);
+  const copyRef = useRef(null);
 
   useEffect(() => {
     const context = canvasRef.current.getContext('2d', { willReadFrequently: true });
@@ -33,10 +38,52 @@ const Canvas = ({ width, height }) => {
         e.preventDefault();
         redo();
       }
+      if(e.key=== 'Escape') {
+        e.preventDefault();
+        restoreLastState();
+        setSelectMode(false);
+        setSelectedShape(null);
+        copyRef.current = null;
+        print('Selection cleared');
+        print(selectMode);
+        print(selectedShape)
+      }
+      if(selectMode && ((e.ctrlKey || e.metaKey) && e.key === 'c')) {
+        // copy selected area
+        e.preventDefault();
+        restoreLastState();
+        copyRef.current = contextRef.current.getImageData(startSelect.current[0], startSelect.current[1],
+        endSelect.current[0] - startSelect.current[0], endSelect.current[1] - startSelect.current[1]);
+        console.log('Copied area:', copyRef.current);
+        setSelectMode(false);
+      }
+      if((e.ctrlkey || e.metaKey) && e.key === 'v') {
+        // paste copied area
+        e.preventDefault();
+        console.log('Copy reference:', copyRef.current);
+        // console.log('Pasting copied area at:', e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+        
+        if(copyRef.current) {
+          // contextRef.current.putImageData(copyRef.current, e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+          saveHistory();
+        }
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  
+  useEffect(() => {
+    const context = canvasRef.current.getContext('2d');
+    context.lineWidth = brush.width;
+    // You can add more style changes here if needed
+  }, [brush, canvasRef]);
+
+  useEffect(()=>{
+    const context = canvasRef.current.getContext('2d');
+    context.strokeStyle = brushColor; 
+  },[brushColor, canvasRef]);
 
   // Save current canvas state to history
   const saveHistory = () => {
@@ -65,6 +112,14 @@ const Canvas = ({ width, height }) => {
     console.log(`History saved. Current step: ${historyStepRef.current}, Total history: ${historyRef.current.length}`);
   };
 
+  // restore last state
+  const restoreLastState = () => {
+    if (historyRef.current.length > 0) {  
+      const ctx = contextRef.current;
+      ctx.putImageData(historyRef.current[historyStepRef.current], 0, 0);
+    }
+  };
+
   // Undo function
   const undo = () => {
     if (historyStepRef.current > 0) {
@@ -84,6 +139,10 @@ const Canvas = ({ width, height }) => {
   };
 
   const handleMouseDown = (e) => {
+    if(selectMode) {
+      setSelectMode(false);
+      restoreLastState();
+    }
     isDrawingRef.current = true;
     if(selectedShape){
       startSelect.current=[e.nativeEvent.offsetX, e.nativeEvent.offsetY];
@@ -124,12 +183,12 @@ const Canvas = ({ width, height }) => {
     isDrawingRef.current = false;
 
     if (selectedShape === 'Select') {
-      // Remove blur by restoring last saved state
       const ctx = contextRef.current;
-      if (historyRef.current.length > 0) { 
-        ctx.putImageData(historyRef.current[historyStepRef.current], 0, 0);
-      }
-      draw_shape(ctx, 'Select', startSelect.current, endSelect.current, dashOffset, false, width, height);
+      draw_shape(ctx, 'Select', startSelect.current, endSelect.current, dashOffset, false);
+      setSelectedShape(null);
+      setSelectMode(true);
+      console.log('Selection made:', startSelect.current, endSelect.current);
+      return;
     }
 
     setSelectedShape(null);
@@ -147,10 +206,12 @@ const Canvas = ({ width, height }) => {
     if (selectedShape === 'Select') {
       // Draw blur overlay and animated rectangle
       const ctx = contextRef.current;
+      // this line only makes a blur effect
       draw_shape(ctx,'Select',[0,0],[0,0],
         dashOffset, // you should animate this with requestAnimationFrame for animation
         true
       );
+    
       const animate = () => {
         setDashOffset((prev) => (prev + 2) % 100);
         frame = requestAnimationFrame(animate);
@@ -174,16 +235,18 @@ const Canvas = ({ width, height }) => {
         onMouseOut={handleMouseOut}
         style={{ border: '1px solid #000', background: '#fff' , cursor: selectedShape ? 'crosshair' : 'default'}}
       ></canvas>
-      <ColorMenu canvasRef={canvasRef} />
-      <BrushMenu canvasRef={canvasRef} />
+      
+      <ColorMenu brush={brush} setBrush={setBrush}/>
+      <BrushMenu brushColor={brushColor} setBrushColor={setBrushColor}/>
     </>
   );
 };
 
-Canvas.propTypes = {
+Canvas.propTypes = { 
   draw: PropTypes.func,
   width: PropTypes.number.isRequired,
   height: PropTypes.number.isRequired,
 };
+
 
 export default Canvas;
