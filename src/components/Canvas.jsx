@@ -1,8 +1,9 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import ColorMenu from './ColorMenu';
 import BrushMenu from './BrushMenu';
-import draw from '../utilities/draw_function';
+import ShapeMenu from './ShapeMenu';
+import {draw_shape} from '../utilities/draw_function';
 
 const MAX_HISTORY = 10;
 
@@ -12,6 +13,9 @@ const Canvas = ({ width, height }) => {
   const isDrawingRef = useRef(false);
   const historyRef = useRef([]);
   const historyStepRef = useRef(-1);
+  const [selectedShape, setSelectedShape] = useState(null);
+  const startSelect = useRef(null);
+  const endSelect = useRef(null);
 
   useEffect(() => {
     const context = canvasRef.current.getContext('2d', { willReadFrequently: true });
@@ -80,6 +84,10 @@ const Canvas = ({ width, height }) => {
 
   const handleMouseDown = (e) => {
     isDrawingRef.current = true;
+    if(selectedShape){
+      startSelect.current=[e.nativeEvent.offsetX, e.nativeEvent.offsetY];
+      return;
+    }
     const ctx = contextRef.current;
     ctx.beginPath();
     ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
@@ -87,13 +95,26 @@ const Canvas = ({ width, height }) => {
 
   const handleMouseMove = (e) => {
     if (!isDrawingRef.current) return;
+    if(selectedShape){
+      endSelect.current=[e.nativeEvent.offsetX, e.nativeEvent.offsetY];
+      // Restore the canvas to the last saved state before drawing the shape
+      const ctx = contextRef.current;
+      if (historyRef.current.length > 0) {
+        ctx.putImageData(historyRef.current[historyStepRef.current], 0, 0);
+      }
+      
+      draw_shape(contextRef.current, selectedShape, startSelect.current, endSelect.current);
+      return;
+    }
     const ctx = contextRef.current;
     ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
     ctx.stroke();
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e) => {
     // if (!isDrawingRef.current) return;
+    endSelect.current=[e.nativeEvent.offsetX, e.nativeEvent.offsetY];
+    console.log('Drawing in the range at:', startSelect.current, endSelect.current);
     isDrawingRef.current = false;
     saveHistory();
   };
@@ -106,6 +127,7 @@ const Canvas = ({ width, height }) => {
 
   return (
     <>
+      <ShapeMenu selectedShape={selectedShape} onSelectShape={setSelectedShape} />
       <canvas
         ref={canvasRef}
         id="whiteboard-canvas"
