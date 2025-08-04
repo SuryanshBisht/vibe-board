@@ -25,6 +25,12 @@ const Canvas = ({ width, height }) => {
   const [menuVisible, setMenuVisible] = useState(false);
   const menuRef = useRef(null);
   const hideTimeoutRef = useRef(null);
+  const [snipList, setSnipList] = useState([]);
+
+
+  useEffect(() => {
+    localStorage.setItem("mySnips", JSON.stringify(snipList));
+  }, [snipList]);
 
   const copy= () => {
     if(selectModeRef.current){
@@ -44,18 +50,40 @@ const Canvas = ({ width, height }) => {
     }
   }
   
-  const paste = () => {
+  const paste = (imageData) => {
     setSelectMode(false);
-    if(copyRef.current) {
-      contextRef.current.putImageData(copyRef.current, mousePosRef.current[0], mousePosRef.current[1]);
+    if(imageData) {
+      contextRef.current.putImageData(imageData, mousePosRef.current[0], mousePosRef.current[1]);
       saveHistory();
     }
+  }
+
+  const save_snip = () => {
+    console.log('Saving snip...');
+    copy();
+    const snipData=copyRef.current;
+    if(snipData===null) return;
+    setSnipList(snipList => [...snipList, snipData]);
+    console.log('Snip saved:', snipData);
+    console.log('Current snip list:', snipList);
+  }
+
+  const clear_snip = () => {
+    setSnipList([]);
+    console.log('Snip list cleared');
   }
 
   useEffect(() => {
     const context = canvasRef.current.getContext('2d', { willReadFrequently: true });
     contextRef.current = context;
     saveHistory(); // Save initial state
+
+    // retrieve saved snips from localStorage
+    const saved_snips = localStorage.getItem("mySnips");
+
+    if (saved_snips) {
+      setSnipList(JSON.parse(saved_snips));
+    }
 
     // Keyboard event for Ctrl+Z (Undo) and Ctrl+Y (Redo)
     const handleKeyDown = (e) => {
@@ -91,7 +119,7 @@ const Canvas = ({ width, height }) => {
         e.preventDefault();
         console.log('Copy reference:', copyRef.current);
         // console.log('Pasting copied area at:', e.nativeEvent.offsetX, e.nativeEvent.offsetY);
-        paste();
+        paste(copyRef.current);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -305,9 +333,7 @@ const Canvas = ({ width, height }) => {
         onContextMenu={handleMenuVisible}
         style={{ border: '1px solid #000', background: '#fff' , cursor: selectedShape ? 'crosshair' : 'default'}}
       ></canvas>
-      {/* <p style={{color: '#fff', position: 'absolute', top: 10, left: 10, zIndex: 1000}}>
-        {menuVisible?"Right click detected" : ""}
-      </p> */}
+     
       {menuVisible && (
         <div
           ref={menuRef}
@@ -329,7 +355,16 @@ const Canvas = ({ width, height }) => {
         >
           <div style={menuItemStyle} onClick={()=>{copy(); setMenuVisible(false);}}>🔗Copy(Ctrl+C)</div>
           <div style={menuItemStyle} onClick={()=>{cut(); setMenuVisible(false);}}>✂️Cut(Ctrl+X)</div>
-          <div style={menuItemStyle} onClick={()=>{paste(); setMenuVisible(false);}}>📋Paste(Ctrl+V)</div>
+          <div style={menuItemStyle} onClick={()=>{paste(copyRef.current); setMenuVisible(false);}}>📋Paste(Ctrl+V)</div>
+          <div style={menuItemStyle} onClick={()=>{save_snip(); setMenuVisible(false);}}>📋Save-Snip</div>
+          <div style={menuItemStyle} onClick={()=>{clear_snip(); setMenuVisible(false);}}>📋Clear-Snips</div>
+          {
+            snipList.map(
+              (snip,index)=>(
+                <div style={menuItemStyle} onClick={()=>{paste(snip); setMenuVisible(false)}}>Snip-{index}</div>
+              )
+            )
+          }
         </div>
       )}
       
