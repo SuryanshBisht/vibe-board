@@ -1,5 +1,6 @@
 import './EditShortcutsMenu.css';
 import { useEffect, useRef, useState } from 'react';
+import { default_custom_shortcuts } from '../data/data';
 
 
 const EditShortcutsMenu = ({shortcuts, setShortcuts, setEditShortCutsMenu }) => {
@@ -24,8 +25,17 @@ const EditShortcutsMenu = ({shortcuts, setShortcuts, setEditShortCutsMenu }) => 
 
     const handleSubmit = () => {
         setShortcuts(formData);
+        localStorage.setItem("myShortcuts", JSON.stringify(formData));
         setEditShortCutsMenu(false);
         console.log('New Shortcuts:', formData);
+    };
+
+    const handleReset = () => {
+        setFormData(default_custom_shortcuts);
+        setShortcuts(default_custom_shortcuts);
+        localStorage.removeItem("myShortcuts");
+        // setEditShortCutsMenu(false);
+        console.log('Shortcuts reset to default:', shortcuts);
     };
 
     useEffect(() => {
@@ -34,13 +44,6 @@ const EditShortcutsMenu = ({shortcuts, setShortcuts, setEditShortCutsMenu }) => 
         console.log('Form data updated:', formData);
     }, [formData]);
 
-    // useEffect(() => {
-    //     Object.entries(formData).forEach(([shape, key]) => {
-    //         console.log(`Shape: ${shape}, Key: ${key}`);
-    //         availKeysRef.current[shape] = getAvailableKeys(shape);
-    //     })
-    // }, []);
-    //  shortcut is like {key :  'a', shape: 'Arrow'}
     return (
         <>
         <div className="overlay" />
@@ -68,8 +71,13 @@ const EditShortcutsMenu = ({shortcuts, setShortcuts, setEditShortCutsMenu }) => 
                 </div>
               ))}
             </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0 20px' }}>
             <div className="popup-footer">
-              <button onClick={handleSubmit}>Save</button>
+                <button onClick={handleReset}>Reset Shortcuts</button>
+            </div>
+            <div className="popup-footer">
+                <button onClick={handleSubmit}>Save</button>
+            </div>
             </div>
           </div>
         </>

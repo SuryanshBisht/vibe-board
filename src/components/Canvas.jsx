@@ -5,7 +5,7 @@ import BrushMenu from './BrushMenu';
 import ShapeMenu from './ShapeMenu';
 import EditShortcutsMenu from './EditShortcutsMenu';
 import {draw_shape} from '../utilities/draw_function';
-import { custom_shortcuts } from '../data/data';
+import { default_custom_shortcuts } from '../data/data';
 
 const MAX_HISTORY = 10;
 const MENU_HIDE_DELAY = 500; // 0.5 seconds
@@ -27,13 +27,9 @@ const Canvas = ({ width, height }) => {
   const [menuVisible, setMenuVisible] = useState(false);
   const menuRef = useRef(null);
   const hideTimeoutRef = useRef(null);
-  const [snipList, setSnipList] = useState([]);
-  const [shortcuts, setShortcuts] = useState(custom_shortcuts);
+  const [snipList, setSnipList] = useState(null);
+  const [shortcuts, setShortcuts] = useState(default_custom_shortcuts);
   const [editShortCutsMenu, setEditShortCutsMenu] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem("mySnips", JSON.stringify(snipList));
-  }, [snipList]);
 
   const copy= () => {
     if(selectModeRef.current){
@@ -89,7 +85,7 @@ const Canvas = ({ width, height }) => {
     console.log('Snip list cleared');
   }
 
-  
+  // initial useeffect
   useEffect(() => {
     // console.log(Object.entries(shortcuts).map(([key, shape]) => `${key}: ${shape}`));
     const context = canvasRef.current.getContext('2d', { willReadFrequently: true });
@@ -97,25 +93,29 @@ const Canvas = ({ width, height }) => {
     saveHistory(); // Save initial state
 
     // retrieve saved snips from localStorage
-    const saved_snips = localStorage.getItem("mySnips");
-
-    if (saved_snips) {
-      setSnipList(JSON.parse(saved_snips));
+    const saved_snips = loadSnipsFromStorage();
+    const saved_shortcuts = localStorage.getItem("myShortcuts");
+  
+    setSnipList(saved_snips);
+    
+    if(saved_shortcuts){
+      setShortcuts(JSON.parse(saved_shortcuts));
     }
   }, []);
 
+
+  // for updating custom shortcuts
   useEffect(() => {
-    // Keyboard event for Ctrl+Z (Undo) and Ctrl+Y (Redo)
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
         e.preventDefault();
         undo();
       }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
         e.preventDefault();
         redo();
       }
-      if(e.key=== 'Escape') {
+      else if(e.key=== 'Escape') {
         e.preventDefault();
         restoreLastState();
         setSelectMode(false);
@@ -125,32 +125,83 @@ const Canvas = ({ width, height }) => {
         console.log(selectMode);
         console.log(selectedShape)
       }
-      if((e.ctrlKey || e.metaKey) && e.key === 'c') {
+      else if((e.ctrlKey || e.metaKey) && e.key === 'c') {
         // copy selected area
         e.preventDefault();
         copy();
       } 
-      if((e.ctrlKey || e.metaKey) && e.key === 'x') {
+      else if((e.ctrlKey || e.metaKey) && e.key === 'x') {
         e.preventDefault();
         cut();
       } 
-      if((e.ctrlKey || e.metaKey) && e.key === 'v') {
+      else if((e.ctrlKey || e.metaKey) && e.key === 'v') {
         // paste copied area
         e.preventDefault();
         console.log('Copy reference:', copyRef.current);
         // console.log('Pasting copied area at:', e.nativeEvent.offsetX, e.nativeEvent.offsetY);
         paste(copyRef.current);
+      }else{
+        // rest of the shortcuts
+        Object.entries(shortcuts).map(([shape, key]) => {
+          if (e.key === key) {
+            e.preventDefault();
+            setSelectedShape(shape);
+          }
+        });
       }
-      Object.entries(shortcuts).map(([shape, key]) => {
-        if (e.key === key) {
-          e.preventDefault();
-          setSelectedShape(shape);
-        }
-      });
+      
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [shortcuts]);
+
+  
+  // for selected shapes
+  useEffect(() => {
+    let frame;
+    if (selectedShape === 'Select') {
+      // Draw blur overlay and animated rectangle
+      const ctx = contextRef.current;
+      // this line only makes a blur effect
+      draw_shape(ctx,'Select',[0,0],[0,0],
+        dashOffset, // you should animate this with requestAnimationFrame for animation
+        true
+      );
+    
+      const animate = () => {
+        setDashOffset((prev) => (prev + 2) % 100);
+        frame = requestAnimationFrame(animate);
+      };
+      animate();
+      return () => cancelAnimationFrame(frame);
+    }
+    if(selectedShape === 'Clear') {
+      draw_shape(contextRef.current, 'Clear', [0, 0], [width, height]);
+      setSelectedShape(null);
+      saveHistory();
+    }
+  }, [selectedShape]);
+
+  // for snipList changes
+  useEffect(() => {
+    if(snipList!==null){
+      const serializableSnips = snipList.map(({ name, data }) => ({
+        name,
+        data: {
+          width: data.width,
+          height: data.height,
+          data: Array.from(data.data), // convert Uint8ClampedArray to normal array
+        }
+      }));
+      localStorage.setItem('mySnips', JSON.stringify(serializableSnips));
+    }
+  }, [snipList]);
+
+  // syncing selectMode with selectModeRef
+  useEffect(()=>{
+    selectModeRef.current=selectMode;
+  },[selectMode])
+
 
   // Save current canvas state to history
   const saveHistory = () => {
@@ -184,6 +235,24 @@ const Canvas = ({ width, height }) => {
     if (historyRef.current.length > 0) {  
       const ctx = contextRef.current;
       ctx.putImageData(historyRef.current[historyStepRef.current], 0, 0);
+    }
+  };
+
+  const loadSnipsFromStorage = () => {
+
+    
+    const raw = localStorage.getItem('mySnips');
+    if (!raw) return [];
+    try {
+       // console.log(raw);
+      const parsed = JSON.parse(raw);
+      return parsed.map(({ name, data }) => ({
+        name,
+        data: new ImageData(new Uint8ClampedArray(data.data), data.width, data.height)
+      }));
+    } catch (e) {
+      console.error("Failed to parse snipList from localStorage", e);
+      return [];
     }
   };
 
@@ -282,35 +351,6 @@ const Canvas = ({ width, height }) => {
     clearTimeout(hideTimeoutRef.current);
     hideTimeoutRef.current = setTimeout(() => setMenuVisible(false), 2000);
   }
-
-  useEffect(() => {
-    let frame;
-    if (selectedShape === 'Select') {
-      // Draw blur overlay and animated rectangle
-      const ctx = contextRef.current;
-      // this line only makes a blur effect
-      draw_shape(ctx,'Select',[0,0],[0,0],
-        dashOffset, // you should animate this with requestAnimationFrame for animation
-        true
-      );
-    
-      const animate = () => {
-        setDashOffset((prev) => (prev + 2) % 100);
-        frame = requestAnimationFrame(animate);
-      };
-      animate();
-      return () => cancelAnimationFrame(frame);
-    }
-    if(selectedShape === 'Clear') {
-      draw_shape(contextRef.current, 'Clear', [0, 0], [width, height]);
-      setSelectedShape(null);
-      saveHistory();
-    }
-  }, [selectedShape]);
-
-  useEffect(()=>{
-    selectModeRef.current=selectMode;
-  },[selectMode])
   
   const menuItemStyle = {
     padding: "8px 20px",
@@ -337,7 +377,7 @@ const Canvas = ({ width, height }) => {
     hideTimeoutRef.current = setTimeout(() => setMenuVisible(false), MENU_HIDE_DELAY);
   };
 
-  // Click outside = hide menu
+  // initial setup
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -350,8 +390,10 @@ const Canvas = ({ width, height }) => {
 
   return (
     <>
-      <ShapeMenu selectedShape={selectedShape} onSelectShape={setSelectedShape} />
-      <button onClick={()=>setEditShortCutsMenu(true)}>Edit Shortcuts</button>
+      <div className="top-m" style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px'}}>
+        <ShapeMenu selectedShape={selectedShape} onSelectShape={setSelectedShape} />
+        <button onClick={()=>setEditShortCutsMenu(true)}>Edit Shortcuts</button>  
+      </div>
       <div style={{position: 'relative'}}>
       <canvas
         ref={canvasRef}
