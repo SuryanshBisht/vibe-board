@@ -6,7 +6,8 @@ const shapes = [
   { name: 'Rectangle', icon: '▭' },
   { name: 'Line', icon: '➖' },
   { name: 'Arrow', icon: '➡️' },
-  { name: 'Ellipse', icon: '⚪' }
+  { name: 'Ellipse', icon: '⚪' },
+  { name: 'Clear', icon: '❌' },
 ];
 
 const ShapeMenu = ({ selectedShape, onSelectShape }) => (

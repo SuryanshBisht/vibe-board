@@ -275,6 +275,11 @@ const Canvas = ({ width, height }) => {
       animate();
       return () => cancelAnimationFrame(frame);
     }
+    if(selectedShape === 'Clear') {
+      draw_shape(contextRef.current, 'Clear', [0, 0], [width, height]);
+      setSelectedShape(null);
+      saveHistory();
+    }
   }, [selectedShape]);
 
   useEffect(()=>{

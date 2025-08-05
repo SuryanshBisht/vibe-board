@@ -5,7 +5,7 @@ const ColorMenu = ({canvasRef}) => {
     const [brushColor, setBrushColor] = useState(colors[0]);
     
     const changeBrushColor = () => {
-        const context = canvasRef.current.getContext('2d');
+        const context = canvasRef.current.getContext('2d', {willReadFrequently: true});
         context.strokeStyle = brushColor;              
     }
     

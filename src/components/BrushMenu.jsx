@@ -4,7 +4,7 @@ import {brushes} from '../data/data';
 const BrushMenu = ({ canvasRef }) => {
   const [brush, setBrush] = useState(brushes[0]);
   useEffect(() => {
-    const context = canvasRef.current.getContext('2d');
+    const context = canvasRef.current.getContext('2d', {willreadFrequently: true});
     context.lineWidth = brush.width;
     // You can add more style changes here if needed
   }, [brush, canvasRef]);

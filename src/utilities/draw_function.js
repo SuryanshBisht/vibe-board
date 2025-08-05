@@ -115,5 +115,8 @@ export function draw_shape(ctx, shape, start, end, dashOffset = 0, showBlur) {
       break;
     default:
       break;
+    case 'Clear':
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      break;
   }
 }
