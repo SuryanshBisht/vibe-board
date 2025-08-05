@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import ColorMenu from './ColorMenu';
 import BrushMenu from './BrushMenu';
 import ShapeMenu from './ShapeMenu';
+import EditShortcutsMenu from './EditShortcutsMenu';
 import {draw_shape} from '../utilities/draw_function';
 import { custom_shortcuts } from '../data/data';
 
@@ -27,7 +28,8 @@ const Canvas = ({ width, height }) => {
   const menuRef = useRef(null);
   const hideTimeoutRef = useRef(null);
   const [snipList, setSnipList] = useState([]);
-
+  const [shortcuts, setShortcuts] = useState(custom_shortcuts);
+  const [editShortCutsMenu, setEditShortCutsMenu] = useState(false);
 
   useEffect(() => {
     localStorage.setItem("mySnips", JSON.stringify(snipList));
@@ -89,6 +91,7 @@ const Canvas = ({ width, height }) => {
 
   
   useEffect(() => {
+    // console.log(Object.entries(shortcuts).map(([key, shape]) => `${key}: ${shape}`));
     const context = canvasRef.current.getContext('2d', { willReadFrequently: true });
     contextRef.current = context;
     saveHistory(); // Save initial state
@@ -99,7 +102,9 @@ const Canvas = ({ width, height }) => {
     if (saved_snips) {
       setSnipList(JSON.parse(saved_snips));
     }
+  }, []);
 
+  useEffect(() => {
     // Keyboard event for Ctrl+Z (Undo) and Ctrl+Y (Redo)
     const handleKeyDown = (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
@@ -136,16 +141,16 @@ const Canvas = ({ width, height }) => {
         // console.log('Pasting copied area at:', e.nativeEvent.offsetX, e.nativeEvent.offsetY);
         paste(copyRef.current);
       }
-      custom_shortcuts.map((shortcut) => {
-        if (e.key === shortcut.key) {
+      Object.entries(shortcuts).map(([shape, key]) => {
+        if (e.key === key) {
           e.preventDefault();
-          setSelectedShape(shortcut.shape);
+          setSelectedShape(shape);
         }
       });
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [shortcuts]);
 
   // Save current canvas state to history
   const saveHistory = () => {
@@ -346,6 +351,7 @@ const Canvas = ({ width, height }) => {
   return (
     <>
       <ShapeMenu selectedShape={selectedShape} onSelectShape={setSelectedShape} />
+      <button onClick={()=>setEditShortCutsMenu(true)}>Edit Shortcuts</button>
       <div style={{position: 'relative'}}>
       <canvas
         ref={canvasRef}
@@ -397,6 +403,15 @@ const Canvas = ({ width, height }) => {
       </div>
       <ColorMenu canvasRef={canvasRef}/>
       <BrushMenu canvasRef={canvasRef}/>
+      {
+        editShortCutsMenu && (
+          <EditShortcutsMenu 
+            shortcuts={shortcuts}
+            setShortcuts={setShortcuts} 
+            setEditShortCutsMenu={setEditShortCutsMenu} 
+          />
+        )
+      }
     </>
   );
 };
