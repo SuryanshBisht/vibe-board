@@ -52,19 +52,32 @@ const Canvas = ({ width, height }) => {
   
   const paste = (imageData) => {
     setSelectMode(false);
-    if(imageData) {
-      contextRef.current.putImageData(imageData, mousePosRef.current[0], mousePosRef.current[1]);
-      saveHistory();
+    if(imageData===null) {
+      alert('No area copied to paste.');
+      return;
     }
+    contextRef.current.putImageData(imageData, mousePosRef.current[0], mousePosRef.current[1]);
+    saveHistory();
+    copyRef.current = null; // Clear copy reference after pasting
   }
 
   const save_snip = () => {
     console.log('Saving snip...');
     copy();
     const snipData=copyRef.current;
-    if(snipData===null) return;
-    setSnipList(snipList => [...snipList, snipData]);
-    console.log('Snip saved:', snipData);
+    if(snipData===null) {
+      alert('No area selected to save as snip.');
+      return;
+    }
+    const snipName=prompt('Enter a name for the snip:');
+    console.log('Snip name:', snipName);
+    const snip={
+      name: snipName,
+      data: snipData,
+    }
+    setSnipList(snipList => [...snipList, snip]);
+    copyRef.current = null; // Clear copy reference after saving
+    console.log('Snip saved:', snip);
     console.log('Current snip list:', snipList);
   }
 
@@ -361,12 +374,12 @@ const Canvas = ({ width, height }) => {
           <div style={menuItemStyle} onClick={()=>{copy(); setMenuVisible(false);}}>🔗Copy(Ctrl+C)</div>
           <div style={menuItemStyle} onClick={()=>{cut(); setMenuVisible(false);}}>✂️Cut(Ctrl+X)</div>
           <div style={menuItemStyle} onClick={()=>{paste(copyRef.current); setMenuVisible(false);}}>📋Paste(Ctrl+V)</div>
-          <div style={menuItemStyle} onClick={()=>{save_snip(); setMenuVisible(false);}}>📋Save-Snip</div>
-          <div style={menuItemStyle} onClick={()=>{clear_snip(); setMenuVisible(false);}}>📋Clear-Snips</div>
+          <div style={menuItemStyle} onClick={()=>{save_snip(); setMenuVisible(false);}}>💾Save-Snip</div>
+          <div style={menuItemStyle} onClick={()=>{clear_snip(); setMenuVisible(false);}}>♻️Clear-Snips</div>
           {
             snipList.map(
-              (snip,index)=>(
-                <div style={menuItemStyle} onClick={()=>{paste(snip); setMenuVisible(false)}}>Snip-{index}</div>
+              (snip)=>(
+                <div style={menuItemStyle} onClick={()=>{paste(snip.data); setMenuVisible(false)}}> 📌{snip.name}</div>
               )
             )
           }
