@@ -4,6 +4,7 @@ import ColorMenu from './ColorMenu';
 import BrushMenu from './BrushMenu';
 import ShapeMenu from './ShapeMenu';
 import {draw_shape} from '../utilities/draw_function';
+import { custom_shortcuts } from '../data/data';
 
 const MAX_HISTORY = 10;
 const MENU_HIDE_DELAY = 500; // 0.5 seconds
@@ -86,6 +87,7 @@ const Canvas = ({ width, height }) => {
     console.log('Snip list cleared');
   }
 
+  
   useEffect(() => {
     const context = canvasRef.current.getContext('2d', { willReadFrequently: true });
     contextRef.current = context;
@@ -134,6 +136,12 @@ const Canvas = ({ width, height }) => {
         // console.log('Pasting copied area at:', e.nativeEvent.offsetX, e.nativeEvent.offsetY);
         paste(copyRef.current);
       }
+      custom_shortcuts.map((shortcut) => {
+        if (e.key === shortcut.key) {
+          e.preventDefault();
+          setSelectedShape(shortcut.shape);
+        }
+      });
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -379,7 +387,7 @@ const Canvas = ({ width, height }) => {
           {
             snipList.map(
               (snip)=>(
-                <div style={menuItemStyle} onClick={()=>{paste(snip.data); setMenuVisible(false)}}> 📌{snip.name}</div>
+                <div key={snip.name} style={menuItemStyle} onClick={()=>{paste(snip.data); setMenuVisible(false)}}> 📌{snip.name}</div>
               )
             )
           }

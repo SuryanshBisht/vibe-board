@@ -10,4 +10,31 @@ export const brushes = [
 
 export const colors = ['#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF'];
 
+export const custom_shortcuts=[
+    {
+        key: 's',
+        shape: 'Select',
+    },
+    {
+        key: 'r',
+        shape: 'Rectangle',
+    },
+    {
+        key: 'l',
+        shape: 'Line',
+    },
+    {
+        key: 'a',
+        shape: 'Arrow',
+    },
+    {
+        key: 'e',
+        shape: 'Ellipse',
+    },
+    {
+        key: 'x',
+        shape: 'Clear',
+    }
+];
+
 
